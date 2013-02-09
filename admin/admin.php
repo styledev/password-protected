@@ -105,7 +105,12 @@ class Password_Protected_Admin {
 	 * Password Protected Section
 	 */
 	function password_protected_settings_section() {
+		global $Password_Protected;
 		echo '<p>' . __( 'Password protect your web site. Users will be asked to enter a password to view the site.', 'password-protected' ) . '</p>';
+		if ( $Password_Protected->is_wpengine_hosting() ) {
+			echo '<p style="color: #C00;"><strong>' . __( 'Please note: As your site appears to be hosted with WP Engine, the Password Protected plugin is unable to robustly protect your site due to their caching implementation.', 'password-protected' ) . '</strong>
+				' . __( 'Instead Password Protected will implement basic JavaScript protection. This is not secure and users will be able to view your site simply by disabling JavaScript - it is recommended that you do not use this plugin if you require your site content to be completely inaccessible.', 'password-protected' ) . '</p>';
+		}
 	}
 	
 	/**

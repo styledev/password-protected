@@ -56,12 +56,42 @@ class Password_Protected {
 		add_action( 'template_redirect', array( $this, 'maybe_show_login' ), 1 );
 		add_filter( 'pre_option_password_protected_status', array( $this, 'allow_feeds' ) );
 		add_filter( 'pre_option_password_protected_status', array( $this, 'allow_administrators' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'wp_enqueue_scripts' ) );
 		if ( is_admin() ) {
 			include_once( dirname( __FILE__ ) . '/admin/admin.php' );
 			$this->admin = new Password_Protected_Admin();
 		}
 	}
-	
+
+	/**
+	 * WP Enqueue Scripts
+	 */
+	function wp_enqueue_scripts() {
+		global $Password_Protected;
+		if ( $this->is_active() && ! $Password_Protected->is_wpengine_hosting() && ! isset( $_REQUEST['password-protected'] )  ) {
+			$js_vars = array(
+				'cookie_name' => $this->cookie_name(),
+				'login_url' => $this->login_url()
+			);
+			wp_enqueue_script(
+				'password_protected_wpengine',
+				plugins_url( '/js/wpengine.js', __FILE__ )
+			);
+			wp_localize_script( 'password_protected_wpengine', 'PasswordProtected', $js_vars );
+		}
+	}
+
+	/**
+	 * Login URL
+	 */
+	function login_url() {
+		$query = array(
+			'password-protected' => 'login',
+			'redirect_to' => urlencode( ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] )
+		);
+		return add_query_arg( $query, home_url() );
+	}
+
 	/**
 	 * I18n
 	 */
@@ -173,11 +203,7 @@ class Password_Protected {
 			include( dirname( __FILE__ ) . '/theme/login.php' );
 			exit();
 		} else {
-			$query = array(
-				'password-protected' => 'login',
-				'redirect_to' => urlencode( ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] )
-			);
-			wp_redirect( add_query_arg( $query, home_url() ) );
+			wp_redirect( $this->login_url() );
 			exit();
 		}
 	}
@@ -290,9 +316,9 @@ class Password_Protected {
 		$secure_password_protected_cookie = apply_filters( 'password_protected_secure_password_protected_cookie', false, $secure );
 		$password_protected_cookie = $this->generate_auth_cookie( $expiration, 'password_protected' );
 		
-		setcookie( $this->cookie_name(), $password_protected_cookie, $expire, COOKIEPATH, COOKIE_DOMAIN, $secure_password_protected_cookie, true );
+		setcookie( $this->cookie_name(), $password_protected_cookie, $expire, COOKIEPATH, COOKIE_DOMAIN, $secure_password_protected_cookie, false );
 		if ( COOKIEPATH != SITECOOKIEPATH )
-			setcookie( $this->cookie_name(), $password_protected_cookie, $expire, SITECOOKIEPATH, COOKIE_DOMAIN, $secure_password_protected_cookie, true );
+			setcookie( $this->cookie_name(), $password_protected_cookie, $expire, SITECOOKIEPATH, COOKIE_DOMAIN, $secure_password_protected_cookie, false );
 	}
 	
 	/**
@@ -326,6 +352,15 @@ class Password_Protected {
 		}
 		
 		update_option( 'password_protected_version', $this->version );
+	}
+
+	/**
+	 * Is WP Engine Hosting?
+	 */
+	function is_wpengine_hosting() {
+		if ( defined( 'WPE_CLUSTER_ID' ) )
+			return true;
+		return false;
 	}
 
 }
